@@ -11,7 +11,7 @@ import (
 
 	"bosun.org/_third_party/github.com/MiniProfiler/go/miniprofiler"
 	"bosun.org/_third_party/github.com/influxdb/influxdb/client"
-	"bosun.org/_third_party/github.com/olivere/elastic"
+	elastic "gopkg.in/olivere/elastic.v3"
 	"bosun.org/cmd/bosun/cache"
 	"bosun.org/cmd/bosun/expr/parse"
 	"bosun.org/cmd/bosun/search"

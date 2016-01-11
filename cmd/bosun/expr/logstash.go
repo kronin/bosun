@@ -8,9 +8,10 @@ import (
 	"time"
 
 	"bosun.org/_third_party/github.com/MiniProfiler/go/miniprofiler"
-	"bosun.org/_third_party/github.com/olivere/elastic"
 	"bosun.org/cmd/bosun/expr/parse"
 	"bosun.org/opentsdb"
+	"bosun.org/slog"
+	elastic "gopkg.in/olivere/elastic.v3"
 )
 
 // This uses a global client since the elastic client handles connections
@@ -71,7 +72,7 @@ func (e LogstashElasticHosts) Query(r *LogstashRequest) (*elastic.SearchResult, 
 	if err != nil {
 		return nil, err
 	}
-	s.Indices(indicies)
+	s.Index(indicies)
 	return s.SearchSource(r.Source).Do()
 }
 
@@ -86,15 +87,33 @@ type LogstashRequest struct {
 
 // CacheKey returns the text of the elastic query. That text is the indentifer for
 // the query in the cache
-func (r *LogstashRequest) CacheKey() string {
-	return r.Source.Source().(string)
+func (r *LogstashRequest) CacheKey() (string, error) {
+	s, err := r.Source.Source()
+	if err != nil {
+		return "", err
+	}
+	var str string
+	var ok bool
+	str, ok = s.(string)
+	if !ok {
+		return "", fmt.Errorf("failed to generate string representation of search source for cache key: %s", s)
+	}
+	return str, nil
 }
 
 // timeLSRequest execute the elasticsearch query (which may set or hit cache) and returns
 // the search results.
 func timeLSRequest(e *State, T miniprofiler.Timer, req *LogstashRequest) (resp *elastic.SearchResult, err error) {
 	e.logstashQueries = append(e.logstashQueries, *req.Source)
-	b, _ := json.MarshalIndent(req.Source.Source(), "", "  ")
+	var source interface{}
+	source, err = req.Source.Source()
+	if err != nil {
+		return resp, fmt.Errorf("failed to get source of request while timing elastic request: %s", err)
+	}
+	b, err := json.MarshalIndent(source, "", "  ")
+	if err != nil {
+		return resp, err
+	}
 	T.StepCustomTiming("logstash", "query", string(b), func() {
 		getFn := func() (interface{}, error) {
 			return e.logstashHosts.Query(req)
@@ -349,20 +368,22 @@ func LSBaseQuery(now time.Time, indexRoot string, l LogstashElasticHosts, keystr
 		End:       &en,
 		Source:    elastic.NewSearchSource().Size(size),
 	}
-	tf := elastic.NewRangeFilter("@timestamp").Gte(st).Lte(en)
-	filtered := elastic.NewFilteredQuery(tf)
-	r.KeyMatches, err = ProcessLSKeys(keystring, filter, &filtered)
+    var q elastic.Query
+	q = elastic.NewRangeQuery("@timestamp").Gte(st).Lte(en)
+	slog.Infoln(q)
+	r.KeyMatches, q, err = ProcessLSKeys(keystring, filter, q)
+	slog.Infoln(q)
 	if err != nil {
 		return nil, err
 	}
-	r.Source = r.Source.Query(filtered)
+	r.Source = r.Source.Query(q)
 	return &r, nil
 }
 
 // This creates the elastic filter porition of a query
-func ProcessLSKeys(keystring, filter string, filtered *elastic.FilteredQuery) ([]lsKeyMatch, error) {
+func ProcessLSKeys(keystring, filter string, filtered elastic.Query) ([]lsKeyMatch, elastic.Query, error) {
 	var keys []lsKeyMatch
-	var filters []elastic.Filter
+	var filters []elastic.Query
 	for _, section := range strings.Split(keystring, ",") {
 		sp := strings.SplitN(section, ":", 2)
 		k := lsKeyMatch{Key: sp[0]}
@@ -371,9 +392,9 @@ func ProcessLSKeys(keystring, filter string, filtered *elastic.FilteredQuery) ([
 			var err error
 			k.Pattern, err = regexp.Compile(k.RawPattern)
 			if err != nil {
-				return nil, err
+				return nil, filtered, err
 			}
-			re := elastic.NewRegexpFilter(k.Key, k.RawPattern)
+			re := elastic.NewRegexpQuery(k.Key, k.RawPattern)
 			filters = append(filters, re)
 		}
 		keys = append(keys, k)
@@ -382,15 +403,16 @@ func ProcessLSKeys(keystring, filter string, filtered *elastic.FilteredQuery) ([
 		for _, section := range strings.Split(filter, ",") {
 			sp := strings.SplitN(section, ":", 2)
 			if len(sp) != 2 {
-				return nil, fmt.Errorf("error parsing filter string")
+				return nil, filtered, fmt.Errorf("error parsing filter string")
 			}
-			re := elastic.NewRegexpFilter(sp[0], sp[1])
+			re := elastic.NewRegexpQuery(sp[0], sp[1])
 			filters = append(filters, re)
 		}
 	}
 	if len(filters) > 0 {
-		and := elastic.NewAndFilter(filters...)
-		*filtered = filtered.Filter(and)
+		and := elastic.NewBoolQuery()
+		and.Must(filters...)
+		filtered = and.Filter(filtered)
 	}
-	return keys, nil
+	return keys, filtered, nil
 }
