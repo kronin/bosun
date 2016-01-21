@@ -519,6 +519,8 @@ func Action(t miniprofiler.Timer, w http.ResponseWriter, r *http.Request) (inter
 		at = sched.ActionClose
 	case "forget":
 		at = sched.ActionForget
+	case "purge":
+		at = sched.ActionPurge
 	}
 	errs := make(MultiError)
 	r.ParseForm()

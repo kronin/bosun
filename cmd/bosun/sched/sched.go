@@ -736,6 +736,8 @@ func (s *Schedule) Action(user, message string, t ActionType, ak models.AlertKey
 			}
 
 		}
+	case ActionPurge:
+		delete(s.status, ak)
 	case ActionForget:
 		if !isUnknown {
 			return fmt.Errorf("can only forget unknowns")
@@ -861,6 +863,7 @@ const (
 	ActionAcknowledge
 	ActionClose
 	ActionForget
+	ActionPurge
 )
 
 func (a ActionType) String() string {
@@ -871,6 +874,8 @@ func (a ActionType) String() string {
 		return "Closed"
 	case ActionForget:
 		return "Forgotten"
+	case ActionPurge:
+		return "Purged"
 	default:
 		return "none"
 	}
