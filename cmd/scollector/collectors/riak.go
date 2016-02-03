@@ -66,11 +66,6 @@ var riakMeta = map[string]MetricMeta{
 		Unit:     metadata.Event,
 		Desc:     "Total number of post-commit hook failures.",
 	},
-	"executing_mappers": {
-		Metric:   "executing_mappers",
-		RateType: metadata.Gauge,
-		Unit:     metadata.Process,
-	},
 	"pipeline_create_count": {
 		Metric:   "pipeline.create.count",
 		RateType: metadata.Counter,
@@ -132,12 +127,6 @@ var riakMeta = map[string]MetricMeta{
 		RateType: metadata.Gauge,
 		Unit:     metadata.Bytes,
 		Desc:     "Total allocated memory that is not directly related to an Erlang process.",
-	},
-	"memory_system_used": {
-		Metric:   "memory",
-		TagSet:   opentsdb.TagSet{"type": "system_used"},
-		RateType: metadata.Gauge,
-		Unit:     metadata.Bytes,
 	},
 	"memory_atom": {
 		Metric:   "memory",
@@ -441,6 +430,19 @@ var riakMeta = map[string]MetricMeta{
 		RateType: metadata.Gauge,
 		Unit:     metadata.Load,
 		Desc:     "The average number of active processes for the last 15 minutes (equivalent to top(1) command’s load average when divided by 256()).",
+	},
+
+	// Riak 1.x-specific metrics
+	"executing_mappers": {
+		Metric:   "executing_mappers",
+		RateType: metadata.Gauge,
+		Unit:     metadata.Process,
+	},
+	"memory_system_used": {
+		Metric:   "memory",
+		TagSet:   opentsdb.TagSet{"type": "system_used"},
+		RateType: metadata.Gauge,
+		Unit:     metadata.Bytes,
 	},
 	"riak_search_vnodeq_total": {
 		Metric:   "search.vnodeq",
