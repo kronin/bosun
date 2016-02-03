@@ -85,7 +85,7 @@ var riakMeta = map[string]MetricMeta{
 	},
 	"pipeline_active": {
 		Metric:   "active",
-		TagSet:   opentsdb.TagSet{"type": "pbc"},
+		TagSet:   opentsdb.TagSet{"type": "pipeline"},
 		RateType: metadata.Gauge,
 		Unit:     metadata.Process,
 		Desc:     "The number of pipelines active in the last 60 seconds.",
