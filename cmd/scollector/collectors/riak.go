@@ -508,7 +508,9 @@ func riak(s string) (opentsdb.MultiDataPoint, error) {
 					return nil, err
 				}
 			}
-			Add(&md, "riak."+m.Metric, v, m.TagSet, m.RateType, m.Unit, m.Desc)
+			if v != "undefined" {
+				Add(&md, "riak."+m.Metric, v, m.TagSet, m.RateType, m.Unit, m.Desc)
+			}
 		} else if k == "connected_nodes" {
 			nodes, ok := v.([]interface{})
 			// 'connected_nodes' array can be empty
